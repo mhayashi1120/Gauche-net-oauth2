@@ -29,7 +29,7 @@ ARCHFILES =
 SCMFILES  = $(srcdir)/net/oauth2.scm
 HEADERS   =
 
-TARGET    = $(ARCHFILES)
+TARGET    =
 GENERATED =
 CONFIG_GENERATED = Makefile config.cache config.log config.status \
 		   configure.lineno autom4te*.cache $(PACKAGE).gpd
