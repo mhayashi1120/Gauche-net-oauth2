@@ -10,3 +10,8 @@ Gauche-net-oauth2
     sudo make install
 
 
+## Function
+
+TODO: Interface may be changed in future release.
+
+
