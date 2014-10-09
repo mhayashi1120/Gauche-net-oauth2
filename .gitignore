@@ -1,0 +1,5 @@
+test.log
+config.log
+*.gpd
+Makefile
+VERSION
