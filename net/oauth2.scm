@@ -20,7 +20,7 @@
   (use text.tree)
   (use rfc.json)
 
-  (export 
+  (export
    <oauth2-cred>
    oauth2-request-password-credential
    oauth2-request-implicit-grant
@@ -56,8 +56,15 @@
       (and (string? x) (not (string-null? x)))))
 
 (define (other-keys->params keys)
+  (define (->string x)
+    (cond
+     [(keyword? x)
+      (keyword->string x)]
+     [else
+      (x->string x)]))
+
   (define (x->name x)
-    (string-tr (x->string x) "-" "_"))
+    (string-tr (->string x) "-" "_"))
 
   (let loop ([params keys]
              [res '()])
@@ -69,8 +76,8 @@
      [else
       (let ([k (car params)]
             [v (cadr params)])
-        (loop (cddr params) 
-              (cons 
+        (loop (cddr params)
+              (cons
                `(,(x->name k) ,(x->string v))
                res)))])))
 
@@ -162,10 +169,10 @@
 ;;; Implicit Grant (Section 4.2)
 ;;;
 
-(define (oauth2-request-implicit-grant 
+(define (oauth2-request-implicit-grant
          url client-id
          :key (redirect #f) (scope '()) (state #f)
-                     :allow-other-keys params)
+         :allow-other-keys params)
   (request-oauth2
    'get url
    `(("response_type" "token")
@@ -228,7 +235,7 @@
 (define (oauth2-refresh-token url refresh-token :key (scope '())
                               :allow-other-keys _keys)
   (request->response/json
-   'post url 
+   'post url
    `(("grant_type" "refresh_token")
      ("refresh_token" ,refresh-token)
      ,@(cond-list
@@ -262,8 +269,6 @@
 ;;;
 
 (define (oauth2-request/json method url params)
-  (request->response/json
-   method url
-   params))
+  (request->response/json method url params))
 
 (define oauth2-stringify-scope stringify-scope)
