@@ -114,7 +114,7 @@
                   status body))
         (values body header status)))))
 
-;; Utility wrapper
+;; Utility wrapper to parse response body with content-type
 (define (request->response/content-type . args)
   (receive (body header status)
       (apply request-oauth2 args)
@@ -161,16 +161,14 @@
          ;; recommended
          (state #f)
          :allow-other-keys _keys)
-  (let* ([params `(("response_type" "code")
-                   ("client_id" ,client-id)
-                   ,@(cond-list
-                      [redirect
-                       `("redirect_uri" ,redirect)]
-                      [(valid-scope? scope)
-                       `("scope" ,(stringify-scope scope))]
-                      [state
-                       `("state" ,state)])
-                   ,@(other-keys->params _keys))]
+  (let* ([params
+          (cond-list
+           [#t `("response_type" "code")]
+           [#t `("client_id" ,client-id)]
+           [redirect `("redirect_uri" ,redirect)]
+           [(valid-scope? scope) `("scope" ,(stringify-scope scope))]
+           [state `("state" ,state)]
+           [#t @ (other-keys->params _keys)])]
          [query (http-compose-query #f params 'utf-8)])
     #`",|url|?,|query|"))
 
@@ -180,12 +178,13 @@
 (define (oauth2-request-auth-token url code redirect client-id . keys)
   (request->response/content-type
    'post url
-   `(("grant_type" "authorization_code")
-     ("code" ,code)
-     ("redirect_uri" ,redirect)
-     ("client_id" ,client-id)
-     ;;TODO not described in doc
-     ,@(other-keys->params keys))))
+   (cond-list
+    [#t `("grant_type" "authorization_code")]
+    [#t `("code" ,code)]
+    [#t `("redirect_uri" ,redirect)]
+    [#t `("client_id" ,client-id)]
+    ;;TODO not described in doc
+    [#t @ (other-keys->params keys)])))
 
 ;;;
 ;;; Implicit Grant (Section 4.2)
@@ -197,16 +196,13 @@
          :allow-other-keys params)
   (request-oauth2
    'get url
-   `(("response_type" "token")
-     ("client_id" ,client-id)
-     ,@(cond-list
-        [redirect
-         `("redirect_uri" ,redirect)]
-        [(valid-scope? scope)
-         `("scope" ,(stringify-scope scope))]
-        [state
-         `("state" ,state)])
-     ,@(other-keys->params params))))
+   (cond-list
+    [#t `("response_type" "token")]
+    [#t `("client_id" ,client-id)]
+    [redirect `("redirect_uri" ,redirect)]
+    [(valid-scope? scope) `("scope" ,(stringify-scope scope))]
+    [state `("state" ,state)]
+    [#t @ (other-keys->params params)])))
 
 ;;;
 ;;; Resource Owner Password Credentials (Section 4.3)
@@ -217,13 +213,12 @@
          :allow-other-keys params)
   (request->response/content-type
    'post url
-   `(("grant_type" "password")
-     ("username" ,username)
-     ("password" ,password)
-     ,@(cond-list
-        [(valid-scope? scope)
-         `("scope" ,(stringify-scope scope))])
-     ,@(other-keys->params params))
+   (cond-list
+    [#t `("grant_type" "password")]
+    [#t `("username" ,username)]
+    [#t `("password" ,password)]
+    [(valid-scope? scope) `("scope" ,(stringify-scope scope))]
+    [#t @ (other-keys->params params)])
    :auth (basic-authentication username password)))
 
 ;;;
@@ -235,11 +230,10 @@
          :allow-other-keys params)
   (request->response/content-type
    'post url
-   `(("grant_type" "client_credentials")
-     ,@(cond-list
-        [(valid-scope? scope)
-         `("scope" ,(stringify-scope scope))])
-     ,@(other-keys->params params))
+   (cond-list
+    [#t `("grant_type" "client_credentials")]
+    [(valid-scope? scope) `("scope" ,(stringify-scope scope))]
+    [#t @ (other-keys->params params)])
    :auth (basic-authentication username password)))
 
 ;; todo Extensions (Section 4.5)
@@ -258,12 +252,12 @@
                               :allow-other-keys _keys)
   (request->response/content-type
    'post url
-   `(("grant_type" "refresh_token")
-     ("refresh_token" ,refresh-token)
-     ,@(cond-list
-        [(valid-scope? scope)
-         `("scope" ,(stringify-scope scope))])
-     ,@(other-keys->params _keys))))
+   (cond-list
+    [#t `("grant_type" "refresh_token")]
+    [#t `("refresh_token" ,refresh-token)]
+    [(valid-scope? scope)
+     `("scope" ,(stringify-scope scope))]
+    [#t @ (other-keys->params _keys)])))
 
 ;;;
 ;;; Utilities to save credential
