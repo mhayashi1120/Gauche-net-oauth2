@@ -1,6 +1,9 @@
 ;;;
-;;; OAuth 2.0 (rfc6749,rfc6750todo)
+;;; OAuth 2.0 (rfc6749, rfc6750)
 ;;;
+
+;; RFC 6749 is almost working now.
+;; RFC 6750 is implementing now.
 
 (define-module net.oauth2
   (use text.tr)
@@ -29,7 +32,8 @@
    oauth2-request-client-credential
    oauth2-refresh-token
    oauth2-bearer-header
-   ;;TODO
+
+   ;; Utility procedures
    oauth2-write-token oauth2-read-token
 
    oauth2-request/json
@@ -53,7 +57,7 @@
 
 (define (valid-scope? x)
   (or (pair? x)
-      (and (string? x) (not (string-null? x)))))
+      (string? x)))
 
 (define (other-keys->params keys)
   (define (->string x)
@@ -92,13 +96,13 @@
                         :secure #t
                         :Authorization auth)]
             [(get)
-             (http-get host #?= #`",|path|?,(http-compose-query #f params 'utf-8)"
+             (http-get host #`",|path|?,(http-compose-query #f params 'utf-8)"
                        :secure #t
                        :Authorization auth
                        ;;TODO
                        :no-redirect #t)]
             (else (error "oauth2-request: unsupported method" method)))
-        ;;TODO may response 302
+        ;; may respond 302
         (unless (#/^[23][0-9][0-9]$/ status)
           (errorf "oauth-request: service provider responded ~a: ~a"
                   status body))
