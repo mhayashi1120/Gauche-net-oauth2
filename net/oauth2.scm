@@ -9,19 +9,14 @@
   (use util.match)
   (use rfc.822)
   (use text.tr)
-  (use util.list)
   (use rfc.http)
   (use rfc.sha)
   (use rfc.hmac)
   (use rfc.base64)
   (use rfc.uri)
   (use srfi-1)
-  (use srfi-13)
   (use math.mt-random)
-  (use gauche.parameter)
-  (use gauche.uvector)
   (use gauche.version)
-  (use text.tree)
 
   (export
    <oauth2-cred>
