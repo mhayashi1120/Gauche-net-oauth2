@@ -6,6 +6,8 @@
 ;; RFC 6750 is implementing now.
 
 (define-module net.oauth2
+  (use util.match)
+  (use rfc.822)
   (use text.tr)
   (use util.list)
   (use rfc.http)
@@ -15,13 +17,11 @@
   (use rfc.uri)
   (use srfi-1)
   (use srfi-13)
-  (use www.cgi)
   (use math.mt-random)
   (use gauche.parameter)
   (use gauche.uvector)
   (use gauche.version)
   (use text.tree)
-  (use rfc.json)
 
   (export
    <oauth2-cred>
@@ -36,13 +36,18 @@
    ;; Utility procedures
    oauth2-write-token oauth2-read-token
 
-   oauth2-request/json
+   oauth2-request oauth2-request/json
    oauth2-stringify-scope
    ))
 (select-module net.oauth2)
 
 (unless (version>? (gauche-version) "0.9")
   (error "Unable to load oauth2 (https is not supported)"))
+
+(autoload rfc.json parse-json-string)
+(autoload www.cgi cgi-parse-parameters)
+(autoload rfc.mime mime-parse-content-type)
+(autoload sxml.ssax ssax:xml->sxml)
 
 ;;;
 ;;; inner utilities
@@ -86,7 +91,7 @@
                res)))])))
 
 ;;TODO no-redirect when fragment
-(define (request-oauth2 method url params :key (auth #f))
+(define (request-oauth2 method url params :key (auth #f) (accept #f))
   (receive (scheme specific) (uri-scheme&specific url)
     (receive (host path . rest) (uri-decompose-hierarchical specific)
       (receive (status header body)
@@ -94,6 +99,7 @@
             [(post)
              (http-post host path params
                         :secure #t
+                        :Accept accept
                         :Authorization auth)]
             [(get)
              (http-get host #`",|path|?,(http-compose-query #f params 'utf-8)"
@@ -108,10 +114,22 @@
                   status body))
         (values body header status)))))
 
-(define (request->response/json . args)
+;; Utility wrapper
+(define (request->response/content-type . args)
   (receive (body header status)
       (apply request-oauth2 args)
-    (values (parse-json-string body) header status)))
+    (and-let* ([content-type (rfc822-header-ref header "content-type")]
+               [ct (mime-parse-content-type content-type)])
+      (match ct
+        [(_ "json" . _)
+         (set! body (parse-json-string body))]
+        [(_ "xml" . _)
+         (set! body (call-with-input-string body (cut ssax:xml->sxml <> '())))]
+        [(_ "x-www-form-urlencoded" . _)
+         (set! body (cgi-parse-parameters :query-string body))]
+        [else
+         (errorf "Not a supported Content-Type: ~a" content-type)]))
+    (values body header status)))
 
 ;; http://oauth.net/2/
 ;; http://tools.ietf.org/rfc/rfc6749.txt
@@ -160,7 +178,7 @@
 
 ;; 4.1.3.  Access Token Request
 (define (oauth2-request-auth-token url code redirect client-id . keys)
-  (request->response/json
+  (request->response/content-type
    'post url
    `(("grant_type" "authorization_code")
      ("code" ,code)
@@ -197,7 +215,7 @@
 (define (oauth2-request-password-credential
          url username password :key (scope '())
          :allow-other-keys params)
-  (request->response/json
+  (request->response/content-type
    'post url
    `(("grant_type" "password")
      ("username" ,username)
@@ -215,7 +233,7 @@
 (define (oauth2-request-client-credential
          url username password :key (scope '())
          :allow-other-keys params)
-  (request->response/json
+  (request->response/content-type
    'post url
    `(("grant_type" "client_credentials")
      ,@(cond-list
@@ -238,7 +256,7 @@
 ;; (Section 6)
 (define (oauth2-refresh-token url refresh-token :key (scope '())
                               :allow-other-keys _keys)
-  (request->response/json
+  (request->response/content-type
    'post url
    `(("grant_type" "refresh_token")
      ("refresh_token" ,refresh-token)
@@ -272,7 +290,10 @@
 ;;; Utilities for special implementation
 ;;;
 
-(define (oauth2-request/json method url params)
-  (request->response/json method url params))
+(define (oauth2-request/json . args)
+  (apply oauth2-request (append args (list :accept "application/json"))))
+
+(define (oauth2-request method url params . args)
+  (apply request-oauth2 method url params args))
 
 (define oauth2-stringify-scope stringify-scope)
