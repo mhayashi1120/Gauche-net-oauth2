@@ -290,10 +290,15 @@
 ;;; Utilities for special implementation
 ;;;
 
+;; Backward compatibility. Should be obsoleted. Wrapper `oauth2-request` .
 (define (oauth2-request/json . args)
   (apply oauth2-request (append args (list :accept "application/json"))))
 
-(define (oauth2-request method url params . args)
-  (apply request-oauth2 method url params args))
+;; METHOD: `post` / `get`
+;; URL: endpoint of Oauth provider.
+;; PARAMS: pass to `http-compose-query`
+;; KEYWORDS: Accept `:auth` `:accept` .
+(define (oauth2-request method url params . keywords)
+  (apply request-oauth2 method url params keywords))
 
 (define oauth2-stringify-scope stringify-scope)
