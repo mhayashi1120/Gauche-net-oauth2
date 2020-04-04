@@ -76,7 +76,7 @@
      [else
       (x->string x)]))
 
-  (define (x->name x)
+  (define (name->parameter x)
     ;; TODO should not oauth lib?
     (string-tr (->string x) "-" "_"))
 
@@ -90,27 +90,30 @@
       [(k v . rest)
        (loop rest
              (cons
-              `(,(x->name k) ,(x->string v))
+              `(,(name->parameter k) ,(x->string v))
               res))])))
 
 ;;TODO no-redirect when fragment
-;; TODO accept other keywords to pass http-post http-get
-(define (request-oauth2 method url params :key (auth #f) (accept #f))
+(define (request-oauth2 method url params-or-blob
+                        :key (auth #f) (accept #f)
+                        :allow-other-keys other-keys)
   (receive (scheme specific) (uri-scheme&specific url)
     (receive (host path . rest) (uri-decompose-hierarchical specific)
       (receive (status header body)
           (case method
             [(post)
-             (http-post host path params
-                        :secure #t
-                        :Accept accept
-                        :Authorization auth)]
+             (apply http-post host path params-or-blob
+                    :secure #t
+                    :Accept accept
+                    :Authorization auth
+                    other-keys)]
             [(get)
-             (http-get host #`",|path|?,(http-compose-query #f params 'utf-8)"
-                       :secure #t
-                       :Authorization auth
-                       ;;TODO
-                       :no-redirect #t)]
+             (apply  http-get host #`",|path|?,(http-compose-query #f params-or-blob 'utf-8)"
+                     :secure #t
+                     :Authorization auth
+                     ;;TODO
+                     :no-redirect #t
+                     other-keys)]
             (else (error "oauth2-request: unsupported method" method)))
         ;; may respond 302
         (unless (#/^[23][0-9][0-9]$/ status)
@@ -119,21 +122,33 @@
         (values body header status)))))
 
 ;; Utility wrapper to parse response body with content-type
-(define (request->response/content-type . args)
-  (receive (body header status)
-      (apply request-oauth2 args)
-    (and-let* ([content-type (rfc822-header-ref header "content-type")]
-               [ct (mime-parse-content-type content-type)])
-      (match ct
-        [(_ "json" . _)
-         (set! body (parse-json-string body))]
-        [(_ "xml" . _)
-         (set! body (call-with-input-string body (cut ssax:xml->sxml <> '())))]
+(define (request->response/content-type
+         request-type method url params-or-blob . args)
+  (receive (request-body request-args)
+      (match (and request-type (mime-parse-content-type request-type))
+        [#f
+         (values params-or-blob args)]
         [(_ "x-www-form-urlencoded" . _)
-         (set! body (cgi-parse-parameters :query-string body))]
+         (values (http-compose-query #f params-or-blob)
+                 (append
+                  args
+                  (list :Content-Type request-type)))]
         [else
-         (errorf "Not a supported Content-Type: ~a" content-type)]))
-    (values body header status)))
+         (errorf "Not a supported Content-Type: ~a" request-type)])
+    (receive (body header status)
+        (apply request-oauth2 method url request-body request-args)
+      (and-let* ([content-type (rfc822-header-ref header "content-type")]
+                 [ct (mime-parse-content-type content-type)])
+        (match ct
+          [(_ "json" . _)
+           (set! body (parse-json-string body))]
+          [(_ "xml" . _)
+           (set! body (call-with-input-string body (cut ssax:xml->sxml <> '())))]
+          [(_ "x-www-form-urlencoded" . _)
+           (set! body (cgi-parse-parameters :query-string body))]
+          [else
+           (errorf "Not a supported Content-Type: ~a" content-type)]))
+      (values body header status))))
 
 ;; http://oauth.net/2/
 ;; http://tools.ietf.org/rfc/rfc6749.txt
@@ -179,11 +194,12 @@
 ;; 4.1.2.  Authorization Response (In user browser)
 
 ;; 4.1.3.  Access Token Request
-(define (oauth2-request-access-token url code client-id
-                                     :key (redirect #f)
-                                     :allow-other-keys keys)
+(define (oauth2-request-access-token
+         url code client-id
+         :key (redirect #f) (request-type #f)
+         :allow-other-keys keys)
   (request->response/content-type
-   'post url
+   request-type 'post url
    (cond-list
     [#t `("grant_type" "authorization_code")]
     [#t `("code" ,code)]
@@ -208,32 +224,33 @@
 (define (oauth2-request-implicit-grant
          url client-id
          :key (redirect #f) (scope '()) (state #f)
-         :allow-other-keys params)
+         :allow-other-keys keys)
   (request->response/content-type
-   'get url
+   #f 'get url
    (cond-list
     [#t `("response_type" "token")]
     [#t `("client_id" ,client-id)]
     [redirect `("redirect_uri" ,redirect)]
     [(valid-scope? scope) `("scope" ,(stringify-scope scope))]
     [state `("state" ,state)]
-    [#t @ (other-keys->params params)])))
+    [#t @ (other-keys->params keys)])))
 
 ;;;
 ;;; Resource Owner Password Credentials (Section 4.3)
 ;;;
 
 (define (oauth2-request-password-credential
-         url username password :key (scope '())
-         :allow-other-keys params)
+         url username password
+         :key (scope '()) (request-type #f)
+         :allow-other-keys keys)
   (request->response/content-type
-   'post url
+   request-type 'post url
    (cond-list
     [#t `("grant_type" "password")]
     [#t `("username" ,username)]
     [#t `("password" ,password)]
     [(valid-scope? scope) `("scope" ,(stringify-scope scope))]
-    [#t @ (other-keys->params params)])
+    [#t @ (other-keys->params keys)])
    :auth (basic-authentication username password)))
 
 ;;;
@@ -241,14 +258,15 @@
 ;;;
 
 (define (oauth2-request-client-credential
-         url username password :key (scope '())
-         :allow-other-keys params)
+         url username password
+         :key (scope '()) (request-type #f)
+         :allow-other-keys keys)
   (request->response/content-type
-   'post url
+   request-type 'post url
    (cond-list
     [#t `("grant_type" "client_credentials")]
     [(valid-scope? scope) `("scope" ,(stringify-scope scope))]
-    [#t @ (other-keys->params params)])
+    [#t @ (other-keys->params keys)])
    :auth (basic-authentication username password)))
 
 ;; todo Extensions (Section 4.5)
@@ -263,16 +281,18 @@
   (format "Basic ~a" (base64-encode-string #`",|user|:,|pass|")))
 
 ;; (Section 6)
-(define (oauth2-refresh-token url refresh-token :key (scope '())
-                              :allow-other-keys _keys)
+(define (oauth2-refresh-token
+         url refresh-token
+         :key (scope '()) (request-type #f)
+         :allow-other-keys keys)
   (request->response/content-type
-   'post url
+   request-type 'post url
    (cond-list
     [#t `("grant_type" "refresh_token")]
     [#t `("refresh_token" ,refresh-token)]
     [(valid-scope? scope)
      `("scope" ,(stringify-scope scope))]
-    [#t @ (other-keys->params _keys)])))
+    [#t @ (other-keys->params keys)])))
 
 ;;;
 ;;; Utilities to save credential
@@ -306,9 +326,11 @@
 
 ;; METHOD: `post` / `get`
 ;; URL: endpoint of Oauth provider.
-;; PARAMS: pass to `http-compose-query`
+;; PARAMS: pass to `http-compose-query` (TODO)
+;; REQUEST-TYPE: Request content-type that can accept oauth provider.
 ;; KEYWORDS: Accept `:auth` `:accept` .
-(define (oauth2-request method url params . keywords)
-  (apply request->response/content-type method url params keywords))
+(define (oauth2-request request-type method url params . keywords)
+  (apply request->response/content-type
+         request-type method url params keywords))
 
 (define oauth2-stringify-scope stringify-scope)
