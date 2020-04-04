@@ -20,18 +20,27 @@
 
   (export
    <oauth2-cred>
+   ;;;
+   ;;; These procedure return 3 values (BODY HEADERS STATUS)
+   ;;; Not like rfc.http procedures (`http-post` / `http-get` ...)
+   ;;;
    oauth2-request-password-credential
    oauth2-request-implicit-grant
-   oauth2-construct-auth-request-url
-   oauth2-request-auth-token
+   oauth2-request-access-token
    oauth2-request-client-credential
    oauth2-refresh-token
+   oauth2-request
+   ;; obsoleted. should use `oauth2-request-access-token`
+   oauth2-request-auth-token
+   
+   oauth2-construct-auth-request-url
+
    oauth2-bearer-header
 
    ;; Utility procedures
    oauth2-write-token oauth2-read-token
 
-   oauth2-request oauth2-request/json
+   oauth2-request/json
    oauth2-stringify-scope
    ))
 (select-module net.oauth2)
@@ -68,24 +77,24 @@
       (x->string x)]))
 
   (define (x->name x)
+    ;; TODO should not oauth lib?
     (string-tr (->string x) "-" "_"))
 
   (let loop ([params keys]
              [res '()])
-    (cond
-     [(null? params)
-      (reverse res)]
-     [(not (cadr params))
-      (loop (cddr params) res)]
-     [else
-      (let ([k (car params)]
-            [v (cadr params)])
-        (loop (cddr params)
-              (cons
-               `(,(x->name k) ,(x->string v))
-               res)))])))
+    (match params
+      [()
+       (reverse! res)]
+      [(_ #f . rest)
+       (loop rest res)]
+      [(k v . rest)
+       (loop rest
+             (cons
+              `(,(x->name k) ,(x->string v))
+              res))])))
 
 ;;TODO no-redirect when fragment
+;; TODO accept other keywords to pass http-post http-get
 (define (request-oauth2 method url params :key (auth #f) (accept #f))
   (receive (scheme specific) (uri-scheme&specific url)
     (receive (host path . rest) (uri-decompose-hierarchical specific)
@@ -170,26 +179,37 @@
 ;; 4.1.2.  Authorization Response (In user browser)
 
 ;; 4.1.3.  Access Token Request
-(define (oauth2-request-auth-token url code redirect client-id . keys)
+(define (oauth2-request-access-token url code client-id
+                                     :key (redirect #f)
+                                     :allow-other-keys keys)
   (request->response/content-type
    'post url
    (cond-list
     [#t `("grant_type" "authorization_code")]
     [#t `("code" ,code)]
-    [#t `("redirect_uri" ,redirect)]
+    ;; e.g. github doesn't need redirect
+    [redirect `("redirect_uri" ,redirect)]
     [#t `("client_id" ,client-id)]
     ;;TODO not described in doc
     [#t @ (other-keys->params keys)])))
+
+;; Obsoleted
+(define (oauth2-request-auth-token url code redirect client-id . keys)
+  (apply
+   oauth2-request-access-token
+   url code client-id
+   :redirect redirect keys))
 
 ;;;
 ;;; Implicit Grant (Section 4.2)
 ;;;
 
+;;TODO reconsider check content-type?
 (define (oauth2-request-implicit-grant
          url client-id
          :key (redirect #f) (scope '()) (state #f)
          :allow-other-keys params)
-  (request-oauth2
+  (request->response/content-type
    'get url
    (cond-list
     [#t `("response_type" "token")]
@@ -258,6 +278,7 @@
 ;;; Utilities to save credential
 ;;;
 
+;; TODO should consider file mode. otherwise obsolete the function.
 (define (oauth2-write-token cred :optional (output-port (current-output-port)))
   (format output-port "(\n")
   (dolist (slot (class-slots (class-of cred)))
@@ -288,6 +309,6 @@
 ;; PARAMS: pass to `http-compose-query`
 ;; KEYWORDS: Accept `:auth` `:accept` .
 (define (oauth2-request method url params . keywords)
-  (apply request-oauth2 method url params keywords))
+  (apply request->response/content-type method url params keywords))
 
 (define oauth2-stringify-scope stringify-scope)
