@@ -38,8 +38,8 @@
   :licenses ("BSD")
 
   ;; Homepage URL, if any.
-  ; :homepage "http://example.com/Gauche-net-oauth2/"
+  :homepage "https://github.com/mhayashi1120/Gauche-net-oauth2"
 
   ;; Repository URL, e.g. github
-  ; :repository "http://example.com/Gauche-net-oauth2.git"
+  :repository "https://github.com/mhayashi1120/Gauche-net-oauth2.git"
   )
