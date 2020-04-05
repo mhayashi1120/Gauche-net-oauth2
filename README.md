@@ -11,4 +11,11 @@ This package desired to provide convenience procedure to handle Major Oauth2 pro
     make check
     sudo make install
 
+## Confirmed Providers
+
+- Github
+- Facebook
+- Google
+- LINE
+
 ## Procedures
