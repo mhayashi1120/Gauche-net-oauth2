@@ -19,7 +19,6 @@
   (use gauche.version)
 
   (export
-   <oauth2-cred>
    ;;;
    ;;; These procedure return 3 values (BODY HEADERS STATUS)
    ;;; Not like rfc.http procedures (`http-post` / `http-get` ...)
@@ -36,9 +35,6 @@
    oauth2-construct-auth-request-url
 
    oauth2-bearer-header
-
-   ;; Utility procedures
-   oauth2-write-token oauth2-read-token
 
    oauth2-request/json
    oauth2-stringify-scope
@@ -189,14 +185,6 @@
 ;; http://oauth.net/2/
 ;; http://tools.ietf.org/rfc/rfc6749.txt
 
-;;;
-;;; Public type
-;;;
-
-(define-class <oauth2-cred> ()
-  ((access-token  :init-keyword :access-token)
-   (refresh-token :init-keyword :refresh-token)))
-
 ;; 4.  Obtaining Authorization
 ;; ....
 ;; OAuth defines four grant types: authorization code, implicit,
@@ -337,28 +325,6 @@
      `("scope" ,(stringify-scope scope))]
     [#t @ (other-keys->params keys)])
    :content-type request-content-type))
-
-;;;
-;;; Utilities to save credential
-;;;
-
-;; TODO should consider file mode. otherwise obsolete the function.
-(define (oauth2-write-token cred :optional (output-port (current-output-port)))
-  (format output-port "(\n")
-  (dolist (slot (class-slots (class-of cred)))
-    (let1 name (car slot)
-      (when (slot-bound? cred name)
-        (let1 value (~ cred name)
-          (format output-port " ~s\n" (cons name value))))))
-  (format output-port ")\n"))
-
-(define (oauth2-read-token
-         :optional (class <oauth2-cred>) (input-port (current-input-port)))
-  (let ([sexp (with-input-from-port input-port read)]
-        [cred (make class)])
-    (dolist (slot (class-slots class))
-      (slot-set! cred (car slot) (assoc-ref sexp (car slot))))
-    cred))
 
 ;;;
 ;;; Utilities for special implementation
