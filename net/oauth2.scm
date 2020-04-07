@@ -48,7 +48,7 @@
 (unless (version>? (gauche-version) "0.9")
   (error "Unable to load oauth2 (https is not supported)"))
 
-(autoload rfc.json parse-json-string)
+(autoload rfc.json parse-json-string construct-json-string)
 (autoload www.cgi cgi-parse-parameters)
 (autoload rfc.mime mime-parse-content-type)
 (autoload sxml.ssax ssax:xml->sxml)
@@ -121,48 +121,70 @@
                   status body))
         (values body header status)))))
 
-;; Utility wrapper to parse response body with content-type
+(define (response-receivr body header status)
+  (and-let* ([content-type (rfc822-header-ref header "content-type")]
+             [ct (mime-parse-content-type content-type)])
+    (match ct
+      [(_ "json" . _)
+       (set! body (parse-json-string body))]
+      [(_ "xml" . _)
+       (set! body (call-with-input-string body (cut ssax:xml->sxml <> '())))]
+      [(_ "x-www-form-urlencoded" . _)
+       (set! body (cgi-parse-parameters :query-string body))]
+      [else
+       (errorf "Not a supported Content-Type: ~a" content-type)]))
+  (values body header status))
+
+(define (construct-request params-or-blob http-options)
+  (let-keywords http-options
+      ([content-type #f]
+       . other-http-options)
+    (cond
+     [(not content-type)
+      (values params-or-blob http-options)]
+     [(string? content-type)
+      (match (mime-parse-content-type content-type)
+        [#f
+         (values params-or-blob http-options)]
+        [(_ "x-www-form-urlencoded" . _)
+         (values (http-compose-query #f params-or-blob)
+                 http-options)]
+        [(_ "json" . _)
+         (values (construct-json-string params-or-blob)
+                 http-options)]
+        [else
+         (errorf "Not a supported Content-Type: ~a" content-type)])]
+     [(procedure? content-type)
+      ;; This procedure should return STRING body and new Content-Type:
+      (receive (body content-type)
+          (content-type params-or-blob)
+        (values body
+                `(
+                  :content-type ,content-type
+                  ,@(delete-keyword :content-type http-options))))]
+     [else
+      (errorf "Not a supported Content-Type: ~a" content-type)])))
+
+;; Utility wrapper to construct-request/parse-response body with content-type
 (define (request->response/content-type
          method url params-or-blob . http-options)
+  (ecase method
+   ['post
+    (apply post/content-type url params-or-blob http-options)]
+   ['get
+    (apply get/content-type url params-or-blob http-options)]))
+
+(define (post/content-type url params-or-blob . http-options)
   (receive (request-body request-args)
-      (let-keywords http-options ([content-type #f]
-                                  . other-http-options)
-        (cond
-         [(not content-type)
-          (values params-or-blob http-options)]
-         [(string? content-type)
-          (match (mime-parse-content-type content-type)
-            [#f
-             (values params-or-blob http-options)]
-            [(_ "x-www-form-urlencoded" . _)
-             (values (http-compose-query #f params-or-blob)
-                     http-options)]
-            [else
-             (errorf "Not a supported Content-Type: ~a" content-type)])]
-         [(procedure? content-type)
-          ;; This procedure should return STRING body and new Content-Type:
-          (receive (body content-type)
-              (content-type params-or-blob)
-            (values body
-                    `(
-                      :content-type ,content-type
-                      ,@(delete-keyword :content-type http-options))))]
-         [else
-          (errorf "Not a supported Content-Type: ~a" content-type)]))
+      (construct-request params-or-blob http-options)
     (receive (body header status)
-        (apply request-oauth2 method url request-body request-args)
-      (and-let* ([content-type (rfc822-header-ref header "content-type")]
-                 [ct (mime-parse-content-type content-type)])
-        (match ct
-          [(_ "json" . _)
-           (set! body (parse-json-string body))]
-          [(_ "xml" . _)
-           (set! body (call-with-input-string body (cut ssax:xml->sxml <> '())))]
-          [(_ "x-www-form-urlencoded" . _)
-           (set! body (cgi-parse-parameters :query-string body))]
-          [else
-           (errorf "Not a supported Content-Type: ~a" content-type)]))
-      (values body header status))))
+        (apply request-oauth2 'post url request-body request-args)
+      (response-receivr body header status))))
+
+(define (get/content-type url params . http-options)
+  (receive (body header status)
+      (apply request-oauth2 'get url params http-options)
+    (response-receivr body header status)))
 
 ;; http://oauth.net/2/
 ;; http://tools.ietf.org/rfc/rfc6749.txt
@@ -213,8 +235,8 @@
          url code client-id
          :key (redirect #f) (request-content-type #f)
          :allow-other-keys keys)
-  (request->response/content-type
-   'post url
+  (post/content-type
+   url
    (cond-list
     [#t `("grant_type" "authorization_code")]
     [#t `("code" ,code)]
@@ -260,8 +282,8 @@
          url username password
          :key (scope '()) (request-content-type #f)
          :allow-other-keys keys)
-  (request->response/content-type
-   'post url
+  (post/content-type
+   url
    (cond-list
     [#t `("grant_type" "password")]
     [#t `("username" ,username)]
@@ -280,8 +302,8 @@
          url username password
          :key (scope '()) (request-content-type #f)
          :allow-other-keys keys)
-  (request->response/content-type
-   'post url
+  (post/content-type
+   url
    (cond-list
     [#t `("grant_type" "client_credentials")]
     [(valid-scope? scope)
@@ -306,8 +328,8 @@
          url refresh-token
          :key (scope '()) (request-content-type #f)
          :allow-other-keys keys)
-  (request->response/content-type
-   'post url
+  (post/content-type
+   url
    (cond-list
     [#t `("grant_type" "refresh_token")]
     [#t `("refresh_token" ,refresh-token)]
@@ -351,9 +373,9 @@
 ;; PARAMS: is passed to `http-post` (Default). :content-type http-options change
 ;;      this behavior.
 ;; HTTP-OPTIONS: Accept `:auth` `:accept` and other `http-get` `http-pots` accept options.
-;;    Especially `:content-type` REQUEST-CONTENT-TYPE following.
+;;    Especially handling `:content-type`, same as REQUEST-CONTENT-TYPE, is described below.
 ;; REQUEST-CONTENT-TYPE:
-;;    This can accept procedure that handle one arg and must return
+;;    This can accept procedure that handle one arg and must return 2 values
 ;;       Request body as STRING and new Content-Type: field that send to oauth provider.
 
 (define (oauth2-request method url params . http-options)
