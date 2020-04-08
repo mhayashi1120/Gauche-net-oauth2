@@ -104,12 +104,15 @@
                     :Authorization auth
                     http-options)]
             [(get)
-             (apply  http-get host #"~|path|?~(http-compose-query #f params-or-blob 'utf-8)"
-                     :secure #t
-                     :Authorization auth
-                     ;;TODO
-                     :no-redirect #t
-                     http-options)]
+             (let1 request-uri (if (pair? params-or-blob)
+                                 (http-compose-query path params-or-blob 'utf-8)
+                                 path)
+               (apply  http-get host request-uri
+                       :secure #t
+                       :Authorization auth
+                       ;;TODO
+                       :no-redirect #t
+                       http-options))]
             (else (error "oauth2-request: unsupported method" method)))
         ;; may respond 302
         (unless (#/^[23][0-9][0-9]$/ status)
