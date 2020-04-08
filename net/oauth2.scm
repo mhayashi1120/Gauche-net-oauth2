@@ -104,7 +104,7 @@
                     :Authorization auth
                     http-options)]
             [(get)
-             (apply  http-get host #`",|path|?,(http-compose-query #f params-or-blob 'utf-8)"
+             (apply  http-get host #"~|path|?~(http-compose-query #f params-or-blob 'utf-8)"
                      :secure #t
                      :Authorization auth
                      ;;TODO
@@ -214,7 +214,7 @@
            [state `("state" ,state)]
            [#t @ (other-keys->params _keys)])]
          [query (http-compose-query #f params 'utf-8)])
-    #`",|url|?,|query|"))
+    #"~|url|?~|query|"))
 
 ;; 4.1.2.  Authorization Response (In user browser)
 
@@ -309,7 +309,7 @@
   (format "Bearer ~a" (slot-ref cred 'access-token)))
 
 (define (basic-authentication user pass)
-  (format "Basic ~a" (base64-encode-string #`",|user|:,|pass|")))
+  (format "Basic ~a" (base64-encode-string #"~|user|:~|pass|")))
 
 ;; (Section 6)
 (define (oauth2-refresh-token
