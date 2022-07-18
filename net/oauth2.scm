@@ -168,9 +168,9 @@
 (define (request->response/content-type
          method url params-or-blob . http-options)
   (ecase method
-   ['post
+   [(post)
     (apply post/content-type url params-or-blob http-options)]
-   ['get
+   [(get)
     (apply get/content-type url params-or-blob http-options)]))
 
 (define (post/content-type url params-or-blob . http-options)
