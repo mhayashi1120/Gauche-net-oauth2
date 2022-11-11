@@ -4,7 +4,7 @@
 
 (define-gauche-package "Gauche-net-oauth2"
   ;; 
-  :version "0.1.4"
+  :version "0.2.0"
 
   ;; Description of the package.  The first line is used as a short
   ;; summary.
