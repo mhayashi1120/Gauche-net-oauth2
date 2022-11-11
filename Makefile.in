@@ -16,6 +16,11 @@ GAUCHE_CONFIG  = "@GAUCHE_CONFIG@"
 GAUCHE_PACKAGE = "@GAUCHE_PACKAGE@"
 INSTALL        = "@GAUCHE_INSTALL@" -C
 
+CFLAGS     = @CFLAGS@
+CPPFLAGS   = @CPPFLAGS@ @WINDOWS_UNICODE_FLAG@
+LDFLAGS    = @LDFLAGS@
+LIBS       = @LIBS@
+
 # Other parameters
 SOEXT  = @SOEXT@
 OBJEXT = @OBJEXT@
@@ -30,7 +35,7 @@ SCMFILES  = $(srcdir)/net/oauth2.scm
 HEADERS   =
 
 TARGET    = $(ARCHFILES)
-GENERATED =
+CLEANFILES =
 CONFIG_GENERATED = Makefile config.cache config.log config.status \
 		   configure.lineno autom4te*.cache $(PACKAGE).gpd
 
@@ -60,7 +65,7 @@ uninstall :
 
 clean :
 	$(GAUCHE_PACKAGE) compile --clean $(net_oauth2_SRCS)
-	rm -rf core $(TARGET) $(GENERATED) *~ test.log so_locations
+	rm -rf core $(TARGET) $(CLEANFILES) *~ test.log so_locations
 
 distclean : clean
 	rm -rf $(CONFIG_GENERATED)
