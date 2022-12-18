@@ -307,7 +307,7 @@
 ;; (define (oauth2-request-extensions url)
 ;;   )
 
-;;TODO rfc6750
+;; Mentioned in rfc6750
 (define (oauth2-bearer-header cred)
   (format "Bearer ~a" (slot-ref cred 'access-token)))
 
@@ -333,7 +333,7 @@
 ;;; Utilities for special implementation
 ;;;
 
-;; Backward compatibility. Should be obsoleted. Wrapper `oauth2-request` .
+;; Backward compatibility. Obsoleted. Should use `oauth2-request` .
 (define (oauth2-request/json . args)
   (apply oauth2-request (append args (list :accept "application/json"))))
 
