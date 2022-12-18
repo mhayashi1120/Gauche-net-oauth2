@@ -12,6 +12,9 @@
    generate-code-verifier encode-challenge))
 (select-module net.oauth2.code-verifier)
 
+;; Worked fine on Google oauth v2 endpoint below.
+;;  https://accounts.google.com/o/oauth2/v2/auth
+
 ;; # Basic concepts:
 ;; - rfc7636 (ref: https://www.rfc-editor.org/rfc/rfc7636)
 ;; - PKCE:  Proof Key for Code Exchange
