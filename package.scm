@@ -23,6 +23,7 @@
   ;;      :providing-modules (util.algorithm1 util.algorithm1.option)
   :providing-modules (
                       net.oauth2
+                      net.oauth2.code-verifier
                       )
   
   ;; List name and contact info of authors.
