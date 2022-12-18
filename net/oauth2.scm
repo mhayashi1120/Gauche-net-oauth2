@@ -72,8 +72,8 @@
      [else
       (x->string x)]))
 
+  ;; Scheme generic separator `-` (Hyphen) to Oauth2 parameter separator `_` (Underscore)
   (define (name->parameter x)
-    ;; TODO should not oauth lib?
     (string-tr (->string x) "-" "_"))
 
   (let loop ([params keys]
