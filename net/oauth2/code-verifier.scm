@@ -2,12 +2,13 @@
 ;;; net.oauth2.code-verifier
 ;;;
 (define-module net.oauth2.code-verifier
+  (use rfc.base64)
+  (use rfc.sha1)
   (use rfc.uri)
-  (use srfi-27)
-  (use scheme.list)
   (use scheme.charset)
-  (use toolbox.secure)
-  (use toolbox.token)
+  (use scheme.list)
+  (use srfi-13)
+  (use srfi-27)
   (export
    generate-code-verifier encode-challenge))
 (select-module net.oauth2.code-verifier)
@@ -35,15 +36,41 @@
 ;;
 ;; > 4.6.  Server Verifies code_verifier before Returning the Tokens
 
+;;;
+;;; Internal
+;;;
+
 ;; ##
-;; -> B64URL:<string>
+;; - LEN : <integer>
+;; -> <string>
+(define (random-string len)
+  (with-output-to-string
+    (^[]
+      (dotimes (_ len)
+        (write-byte (random-integer #x100))))))
+
+;; ## `b64url` is: base64 url-safe and trim last "="
+(define (string->b64url s)
+  ($ (cut string-trim-right <> #[=])
+     $ base64-encode-string s :line-width #f :url-safe #t))
+
+;; ## -> BASE64-URL:<string>
+(define (sha256/b64url s)
+  ($ string->b64url $ sha256-digest-string s))
+
+;;;
+;;; API
+;;;
+
+;; ##
+;; -> BASE64-URL:<string>
 (define (generate-code-verifier :optional (base-size 32))
   ($ string->b64url $ random-string base-size))
 
 ;; ##
-;; :method : <string>
-;; <string> -> <string>
-(define (encode-challenge verifier :key (method "S256"))
+;; - METHOD : <string> "S256" / "plain"
+;; <string> -> <string> -> <string>
+(define (encode-challenge verifier method)
   (ecase (string->symbol method)
     [(plain)
      verifier]
