@@ -12,7 +12,6 @@
   (use rfc.http)
   (use rfc.sha)
   (use rfc.hmac)
-  (use rfc.base64)
   (use rfc.uri)
   (use srfi-1)
   (use math.mt-random)
@@ -310,6 +309,8 @@
 ;; Mentioned in rfc6750
 (define (oauth2-bearer-header cred)
   (format "Bearer ~a" (slot-ref cred 'access-token)))
+
+(autoload rfc.base64 base64-encode-string)
 
 (define (basic-authentication user pass)
   (format "Basic ~a" (base64-encode-string #"~|user|:~|pass|")))
