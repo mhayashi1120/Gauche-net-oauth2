@@ -183,16 +183,6 @@
      [else
       (errorf "Not a supported Content-Type: ~a" content-type)])))
 
-;; Utility wrapper to construct-request/parse-response body with content-type
-;; TODO consider to remove
-(define (request->response/content-type
-         method url params-or-blob . http-options)
-  (ecase method
-   [(post)
-    (apply post/content-type url #f params-or-blob http-options)]
-   [(get)
-    (apply get/content-type url params-or-blob http-options)]))
-
 (define (post/content-type url query body . http-options)
   (receive (request-body request-args)
       (construct-request body http-options)
@@ -372,8 +362,11 @@
 ;;      passed to `http-post` (Default). `:content-type` in http-options change
 ;;      this behavior.
 (define (oauth2-request method url params . http-options)
-  (apply request->response/content-type
-         method url params http-options))
+  (ecase method
+   [(post)
+    (apply post/content-type url #f params http-options)]
+   [(get)
+    (apply get/content-type url params http-options)]))
 
 ;; ## Consider to use s-exp -> s-exp
 ;; - URL : <string> Basic URL before construct with QUERY-PARAMS
