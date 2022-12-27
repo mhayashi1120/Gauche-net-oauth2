@@ -36,7 +36,6 @@
 
    oauth2-stringify-scope
    oauth2-post oauth2-get
-
    )
 
   ;; Testing exports
@@ -54,6 +53,9 @@
    )
   )
 (select-module net.oauth2)
+
+;; # :request-content-type
+;; TODO describe more.
 
 (unless (version>? (gauche-version) "0.9")
   (error "Unable to load oauth2 (https is not supported)"))
