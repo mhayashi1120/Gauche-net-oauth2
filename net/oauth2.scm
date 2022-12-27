@@ -313,7 +313,7 @@
 (autoload rfc.base64 base64-encode-string)
 
 (define (basic-authentication user pass)
-  (format "Basic ~a" (base64-encode-string #"~|user|:~|pass|")))
+  (format "Basic ~a" (base64-encode-string #"~|user|:~|pass|" :line-width #f)))
 
 ;; (Section 6)
 (define (oauth2-refresh-token
