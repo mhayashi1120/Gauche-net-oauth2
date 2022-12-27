@@ -54,7 +54,7 @@
   )
 (select-module net.oauth2)
 
-;; # :request-content-type
+;; # About :request-content-type
 ;; TODO describe more.
 
 (unless (version>? (gauche-version) "0.9")
@@ -105,7 +105,6 @@
               `(,(name->parameter k) ,(x->string v))
               res))])))
 
-;;TODO no-redirect when fragment (<- TODO what does this means?)
 (define (%request method url query-params request-body
                   :key (auth #f) (accept #f)
                   :allow-other-keys http-options)
@@ -125,22 +124,21 @@
                       :Authorization auth
                       http-options)]
               [(get)
-               (apply  http-get host req-resource
-                       :secure #t
-                       :Accept accept
-                       :Authorization auth
-                       ;;TODO
-                       :no-redirect #t
-                       http-options)]
+               (apply http-get host req-resource
+                      :secure #t
+                      :Accept accept
+                      :Authorization auth
+                      http-options)]
               [else (error "oauth2-request: unsupported method" method)])
-          ;; may respond 302
+          ;; 2xx exactly ok, Not enough consideration about 3xx now. (TODO)
           (unless (#/^[23][0-9][0-9]$/ status)
             (errorf "oauth-request: service provider responded ~a: ~a"
                     status body))
           (values body header status))))))
 
 (define (%response-receivr body header status)
-  (and-let* ([content-type (rfc822-header-ref header "content-type")]
+  (and-let* ([(#/^2/ status)]  ;; Might be a redirect status.
+             [content-type (rfc822-header-ref header "content-type")]
              [ct (mime-parse-content-type content-type)])
     (match ct
       [(_ "json" . _)
@@ -250,10 +248,10 @@
 
 ;; Obsoleted
 (define (oauth2-request-auth-token url code redirect client-id . keys)
-  (apply
-   oauth2-request-access-token
-   url code client-id
-   :redirect redirect keys))
+  (apply oauth2-request-access-token
+         url code client-id
+         :redirect redirect
+         keys))
 
 ;;;
 ;;; Implicit Grant (Section 4.2)
