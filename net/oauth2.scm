@@ -104,41 +104,38 @@
               res))])))
 
 ;;TODO no-redirect when fragment (<- TODO what does this means?)
-(define (request-oauth2 method url params-or-blob
+(define (request-oauth2 method url query-params request-body
                         :key (auth #f) (accept #f)
                         :allow-other-keys http-options)
   (receive (_ specific) (uri-scheme&specific url)
     (receive (host path query . _) (uri-decompose-hierarchical specific)
-      (receive (status header body)
-          (case method
-            [(post)
-             (let1 req-resource (if query
-                                  #"~|path|?~|query|"
-                                  path)
-               (apply http-post host req-resource params-or-blob
+      (let* ([query* (if query
+                       (cgi-parse-parameters :query-string query)
+                       ())]
+             [params* (or query-params ())]
+             [req-resource (http-compose-query path (append query* params*) 'utf-8)])
+        (receive (status header body)
+            (case method
+              [(post)
+               (apply http-post host req-resource request-body
                       :secure #t
                       :Accept accept
                       :Authorization auth
-                      http-options))]
-            [(get)
-             (let* ([query* (if query
-                              (cgi-parse-parameters :query-string query)
-                              ())]
-                    [params* (or params-or-blob ())]
-                    [req-resource (http-compose-query path (append query* params*) 'utf-8)])
+                      http-options)]
+              [(get)
                (apply  http-get host req-resource
                        :secure #t
                        :Accept accept
                        :Authorization auth
                        ;;TODO
                        :no-redirect #t
-                       http-options))]
-            (else (error "oauth2-request: unsupported method" method)))
-        ;; may respond 302
-        (unless (#/^[23][0-9][0-9]$/ status)
-          (errorf "oauth-request: service provider responded ~a: ~a"
-                  status body))
-        (values body header status)))))
+                       http-options)]
+              [else (error "oauth2-request: unsupported method" method)])
+          ;; may respond 302
+          (unless (#/^[23][0-9][0-9]$/ status)
+            (errorf "oauth-request: service provider responded ~a: ~a"
+                    status body))
+          (values body header status))))))
 
 (define (response-receivr body header status)
   (and-let* ([content-type (rfc822-header-ref header "content-type")]
@@ -198,12 +195,12 @@
   (receive (request-body request-args)
       (construct-request params-or-blob http-options)
     (receive (body header status)
-        (apply request-oauth2 'post url request-body request-args)
+        (apply request-oauth2 'post url () request-body request-args)
       (response-receivr body header status))))
 
 (define (get/content-type url params . http-options)
   (receive (body header status)
-      (apply request-oauth2 'get url params http-options)
+      (apply request-oauth2 'get url params #f http-options)
     (response-receivr body header status)))
 
 ;; http://oauth.net/2/
@@ -275,8 +272,8 @@
          url client-id
          :key (redirect #f) (scope '()) (state #f)
          :allow-other-keys keys)
-  (request->response/content-type
-   'get url
+  (get/content-type
+   url
    (cond-list
     [#t `("response_type" "token")]
     [#t `("client_id" ,client-id)]
@@ -379,7 +376,7 @@
 ;; ##
 ;; - URL : <string> Basic URL before construct with QUERY-PARAMS
 ;; - QUERY-PARAMS : <alist> | #f
-;; - BODY : <top> Accept any type TODO :request-content-type
+;; - BODY : <top> Accept any type TODO describe about :request-content-type
 ;; - HTTP-OPTIONS: Accept `:auth` `:accept` and others are passed to `http-get` `http-post`.
 ;;    This procedure especially handling `:content-type` and `:request-content-type` are described below.
 ;; - :request-content-type MIME:<string> | {PARAMS:<top> -> [REQUEST-BODY:<string>, CONTENT-TYPE:<string>]}:<procedure>
@@ -399,7 +396,6 @@
 ;; ## Arguments are same as `oauth2-get` except BODY
 ;; -> <top>
 (define (oauth2-get url query-params . http-options)
-  (apply request->response/content-type
-         'get url query-params http-options))
+  (apply get/content-type url query-params http-options))
 
 (define oauth2-stringify-scope stringify-scope)
