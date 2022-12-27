@@ -187,13 +187,13 @@
          method url params-or-blob . http-options)
   (ecase method
    [(post)
-    (apply post/content-type url params-or-blob http-options)]
+    (apply post/content-type url #f params-or-blob http-options)]
    [(get)
     (apply get/content-type url params-or-blob http-options)]))
 
-(define (post/content-type url params-or-blob . http-options)
+(define (post/content-type url query body . http-options)
   (receive (request-body request-args)
-      (construct-request params-or-blob http-options)
+      (construct-request body http-options)
     (receive (body header status)
         (apply request-oauth2 'post url () request-body request-args)
       (response-receivr body header status))))
@@ -245,7 +245,7 @@
          :key (redirect #f) (request-content-type #f)
          :allow-other-keys keys)
   (post/content-type
-   url
+   url #f
    (cond-list
     [#t `("grant_type" "authorization_code")]
     [#t `("code" ,code)]
@@ -292,7 +292,7 @@
          :key (scope '()) (request-content-type #f)
          :allow-other-keys keys)
   (post/content-type
-   url
+   url #f
    (cond-list
     [#t `("grant_type" "password")]
     [#t `("username" ,username)]
@@ -312,7 +312,7 @@
          :key (scope '()) (request-content-type #f)
          :allow-other-keys keys)
   (post/content-type
-   url
+   url #f
    (cond-list
     [#t `("grant_type" "client_credentials")]
     [(valid-scope? scope)
@@ -345,7 +345,7 @@
          :key (scope '()) (request-content-type #f)
          :allow-other-keys keys)
   (post/content-type
-   url
+   url #f
    (cond-list
     [#t `("grant_type" "refresh_token")]
     [#t `("refresh_token" ,refresh-token)]
@@ -373,7 +373,7 @@
   (apply request->response/content-type
          method url params http-options))
 
-;; ##
+;; ## Consider to use s-exp -> s-exp
 ;; - URL : <string> Basic URL before construct with QUERY-PARAMS
 ;; - QUERY-PARAMS : <alist> | #f
 ;; - BODY : <top> Accept any type TODO describe about :request-content-type
@@ -384,14 +384,7 @@
 ;;       Request body as STRING and new Content-Type: field that send to oauth provider.
 ;; -> <top>
 (define (oauth2-post url query-params body . http-options)
-  ;; TODO merge URL with QUERY-PARAMS
-  (let1 url* (cond
-              [query-params
-               (string-append url "?" (http-compose-query #f query-params))]
-              [else
-               url])
-    (apply request->response/content-type
-           'post url* body http-options)))
+  (apply post/content-type url query-params body http-options))
 
 ;; ## Arguments are same as `oauth2-get` except BODY
 ;; -> <top>
