@@ -69,18 +69,18 @@
 ;;; inner utilities
 ;;;
 
-(define (stringify-scope scope)
+(define (%stringify-scope scope)
   (cond
    [(pair? scope)
     (string-join scope " ")]
    [(string? scope)
     scope]))
 
-(define (valid-scope? x)
+(define (%is-scope? x)
   (or (pair? x)
       (string? x)))
 
-(define (other-keys->params keys)
+(define (%other-keys->params keys)
   (define (->string x)
     (cond
      [(keyword? x)
@@ -106,9 +106,9 @@
               res))])))
 
 ;;TODO no-redirect when fragment (<- TODO what does this means?)
-(define (request-oauth2 method url query-params request-body
-                        :key (auth #f) (accept #f)
-                        :allow-other-keys http-options)
+(define (%request method url query-params request-body
+                  :key (auth #f) (accept #f)
+                  :allow-other-keys http-options)
   (receive (_ specific) (uri-scheme&specific url)
     (receive (host path query . _) (uri-decompose-hierarchical specific)
       (let* ([query* (if query
@@ -139,7 +139,7 @@
                     status body))
           (values body header status))))))
 
-(define (response-receivr body header status)
+(define (%response-receivr body header status)
   (and-let* ([content-type (rfc822-header-ref header "content-type")]
              [ct (mime-parse-content-type content-type)])
     (match ct
@@ -153,7 +153,7 @@
        (errorf "Not a supported Content-Type: ~a" content-type)]))
   (values body header status))
 
-(define (construct-request params-or-blob http-options)
+(define (%construct-request params-or-blob http-options)
   (let-keywords http-options
       ([content-type #f]
        . other-http-options)
@@ -185,15 +185,15 @@
 
 (define (post/content-type url query body . http-options)
   (receive (request-body request-args)
-      (construct-request body http-options)
+      (%construct-request body http-options)
     (receive (body header status)
-        (apply request-oauth2 'post url () request-body request-args)
-      (response-receivr body header status))))
+        (apply %request 'post url () request-body request-args)
+      (%response-receivr body header status))))
 
 (define (get/content-type url params . http-options)
   (receive (body header status)
-      (apply request-oauth2 'get url params #f http-options)
-    (response-receivr body header status)))
+      (apply %request 'get url params #f http-options)
+    (%response-receivr body header status)))
 
 ;; http://oauth.net/2/
 ;; http://tools.ietf.org/rfc/rfc6749.txt
@@ -222,10 +222,10 @@
            [#t `("response_type" "code")]
            [#t `("client_id" ,client-id)]
            [redirect `("redirect_uri" ,redirect)]
-           [(valid-scope? scope)
-            `("scope" ,(stringify-scope scope))]
+           [(%is-scope? scope)
+            `("scope" ,(%stringify-scope scope))]
            [state `("state" ,state)]
-           [#t @ (other-keys->params _keys)])]
+           [#t @ (%other-keys->params _keys)])]
          [query (http-compose-query #f params 'utf-8)])
     #"~|url|?~|query|"))
 
@@ -245,7 +245,7 @@
     [redirect `("redirect_uri" ,redirect)]
     [#t `("client_id" ,client-id)]
     ;;TODO not described in doc
-    [#t @ (other-keys->params keys)])
+    [#t @ (%other-keys->params keys)])
    :content-type request-content-type))
 
 ;; Obsoleted
@@ -270,10 +270,10 @@
     [#t `("response_type" "token")]
     [#t `("client_id" ,client-id)]
     [redirect `("redirect_uri" ,redirect)]
-    [(valid-scope? scope)
-     `("scope" ,(stringify-scope scope))]
+    [(%is-scope? scope)
+     `("scope" ,(%stringify-scope scope))]
     [state `("state" ,state)]
-    [#t @ (other-keys->params keys)])))
+    [#t @ (%other-keys->params keys)])))
 
 ;;;
 ;;; Resource Owner Password Credentials (Section 4.3)
@@ -289,9 +289,9 @@
     [#t `("grant_type" "password")]
     [#t `("username" ,username)]
     [#t `("password" ,password)]
-    [(valid-scope? scope)
-     `("scope" ,(stringify-scope scope))]
-    [#t @ (other-keys->params keys)])
+    [(%is-scope? scope)
+     `("scope" ,(%stringify-scope scope))]
+    [#t @ (%other-keys->params keys)])
    :auth (basic-authentication username password)
    :content-type request-content-type))
 
@@ -307,9 +307,9 @@
    url #f
    (cond-list
     [#t `("grant_type" "client_credentials")]
-    [(valid-scope? scope)
-     `("scope" ,(stringify-scope scope))]
-    [#t @ (other-keys->params keys)])
+    [(%is-scope? scope)
+     `("scope" ,(%stringify-scope scope))]
+    [#t @ (%other-keys->params keys)])
    :auth (basic-authentication username password)
    :content-type request-content-type))
 
@@ -341,9 +341,9 @@
    (cond-list
     [#t `("grant_type" "refresh_token")]
     [#t `("refresh_token" ,refresh-token)]
-    [(valid-scope? scope)
-     `("scope" ,(stringify-scope scope))]
-    [#t @ (other-keys->params keys)])
+    [(%is-scope? scope)
+     `("scope" ,(%stringify-scope scope))]
+    [#t @ (%other-keys->params keys)])
    :content-type request-content-type))
 
 ;;;
@@ -370,12 +370,13 @@
 
 ;; ## Consider to use s-exp -> s-exp
 ;; - URL : <string> Basic URL before construct with QUERY-PARAMS
-;; - QUERY-PARAMS : <alist> | #f
+;; - QUERY-PARAMS : <alist> | #f Append to URL as query part.
 ;; - BODY : <top> Accept any type TODO describe about :request-content-type
 ;; - HTTP-OPTIONS: Accept `:auth` `:accept` and others are passed to `http-get` `http-post`.
-;;    This procedure especially handling `:content-type` and `:request-content-type` are described below.
+;;    This procedure especially handling `:content-type` and `:request-content-type` which are
+;;    described below.
 ;; - :request-content-type MIME:<string> | {PARAMS:<top> -> [REQUEST-BODY:<string>, CONTENT-TYPE:<string>]}:<procedure>
-;;    Procedure that handle one arg and must return 2 values
+;;    content-type string or Procedure that handle one arg and must return 2 values
 ;;       Request body as STRING and new Content-Type: field that send to oauth provider.
 ;; -> <top>
 (define (oauth2-post url query-params body . http-options)
@@ -386,4 +387,4 @@
 (define (oauth2-get url query-params . http-options)
   (apply get/content-type url query-params http-options))
 
-(define oauth2-stringify-scope stringify-scope)
+(define oauth2-stringify-scope %stringify-scope)
