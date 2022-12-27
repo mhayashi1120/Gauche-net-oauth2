@@ -2,8 +2,10 @@
 ;;; OAuth 2.0 (rfc6749, rfc6750)
 ;;;
 
-;; RFC 6749 is almost working now.
-;; RFC 6750 is implementing now.
+;; # Status the develop:
+;; - RFC 6749 is almost working now.
+;; - RFC 6750 is implementing now.
+;; - Need cleanup and might be obsoleted some of api.
 
 (define-module net.oauth2
   (use util.match)
@@ -18,26 +20,39 @@
   (use gauche.version)
 
   (export
-   ;;;
-   ;;; These procedure return 3 values (BODY HEADERS STATUS)
-   ;;; Not like rfc.http procedures (`http-post` / `http-get` ...)
-   ;;;
+;;;
+;;; These procedure return 3 values (BODY HEADERS STATUS)
+;;; Not like rfc.http procedures (`http-post` / `http-get` ...)
+;;;
    oauth2-request-password-credential
    oauth2-request-implicit-grant
    oauth2-request-access-token
    oauth2-request-client-credential
    oauth2-refresh-token
-   oauth2-request
-   ;; obsoleted. should use `oauth2-request-access-token`
-   oauth2-request-auth-token
    
    oauth2-construct-auth-request-url
 
    oauth2-bearer-header
 
-   oauth2-request/json
    oauth2-stringify-scope
-   ))
+   oauth2-post oauth2-get
+
+   )
+
+  ;; Testing exports
+  (export
+   basic-authentication
+   )
+
+  ;; Obsoleting exports
+  (export
+   ;; should use `oauth2-request-access-token`
+   oauth2-request-auth-token
+
+   oauth2-request/json
+   oauth2-request
+   )
+  )
 (select-module net.oauth2)
 
 (unless (version>? (gauche-version) "0.9")
@@ -88,26 +103,32 @@
               `(,(name->parameter k) ,(x->string v))
               res))])))
 
-;;TODO no-redirect when fragment
+;;TODO no-redirect when fragment (<- TODO what does this means?)
 (define (request-oauth2 method url params-or-blob
                         :key (auth #f) (accept #f)
                         :allow-other-keys http-options)
-  (receive (scheme specific) (uri-scheme&specific url)
-    (receive (host path . rest) (uri-decompose-hierarchical specific)
+  (receive (_ specific) (uri-scheme&specific url)
+    (receive (host path query . _) (uri-decompose-hierarchical specific)
       (receive (status header body)
           (case method
             [(post)
-             (apply http-post host path params-or-blob
-                    :secure #t
-                    :Accept accept
-                    :Authorization auth
-                    http-options)]
+             (let1 req-resource (if query
+                                  #"~|path|?~|query|"
+                                  path)
+               (apply http-post host req-resource params-or-blob
+                      :secure #t
+                      :Accept accept
+                      :Authorization auth
+                      http-options))]
             [(get)
-             (let1 request-uri (if (pair? params-or-blob)
-                                 (http-compose-query path params-or-blob 'utf-8)
-                                 path)
-               (apply  http-get host request-uri
+             (let* ([query* (if query
+                              (cgi-parse-parameters :query-string query)
+                              ())]
+                    [params* (or params-or-blob ())]
+                    [req-resource (http-compose-query path (append query* params*) 'utf-8)])
+               (apply  http-get host req-resource
                        :secure #t
+                       :Accept accept
                        :Authorization auth
                        ;;TODO
                        :no-redirect #t
@@ -164,6 +185,7 @@
       (errorf "Not a supported Content-Type: ~a" content-type)])))
 
 ;; Utility wrapper to construct-request/parse-response body with content-type
+;; TODO consider to remove
 (define (request->response/content-type
          method url params-or-blob . http-options)
   (ecase method
@@ -306,12 +328,17 @@
 ;; (define (oauth2-request-extensions url)
 ;;   )
 
-;; Mentioned in rfc6750
+;; ## Mentioned in rfc6750
+;; -> <string>
 (define (oauth2-bearer-header cred)
   (format "Bearer ~a" (slot-ref cred 'access-token)))
 
 (autoload rfc.base64 base64-encode-string)
 
+;; ##
+;; - USER: Might be client-id or api-key
+;; - PASS: Might be client-secret or api-secret
+;; -> <string>
 (define (basic-authentication user pass)
   (format "Basic ~a" (base64-encode-string #"~|user|:~|pass|" :line-width #f)))
 
@@ -334,22 +361,45 @@
 ;;; Utilities for special implementation
 ;;;
 
+;; ## TODO Obsoleting
 ;; Backward compatibility. Obsoleted. Should use `oauth2-request` .
 (define (oauth2-request/json . args)
   (apply oauth2-request (append args (list :accept "application/json"))))
 
-;; METHOD: `post` / `get`
-;; URL: endpoint of Oauth provider.
-;; PARAMS: is passed to `http-post` (Default). :content-type http-options change
+;; ## TODO Obsoleting. Should use `oauth2-post` or `oauth2-get`
+;; - METHOD: `post` / `get`
+;; - URL: <string> endpoint of oauth2 provider.
+;; - PARAMS: <query> | <json> | <string> | 
+;;      passed to `http-post` (Default). `:content-type` in http-options change
 ;;      this behavior.
-;; HTTP-OPTIONS: Accept `:auth` `:accept` and other `http-get` `http-pots` accept options.
-;;    Especially handling `:content-type`, same as REQUEST-CONTENT-TYPE, is described below.
-;; REQUEST-CONTENT-TYPE:
-;;    This can accept procedure that handle one arg and must return 2 values
-;;       Request body as STRING and new Content-Type: field that send to oauth provider.
-
 (define (oauth2-request method url params . http-options)
   (apply request->response/content-type
          method url params http-options))
+
+;; ##
+;; - URL : <string> Basic URL before construct with QUERY-PARAMS
+;; - QUERY-PARAMS : <alist> | #f
+;; - BODY : <top> Accept any type TODO :request-content-type
+;; - HTTP-OPTIONS: Accept `:auth` `:accept` and others are passed to `http-get` `http-post`.
+;;    This procedure especially handling `:content-type` and `:request-content-type` are described below.
+;; - :request-content-type MIME:<string> | {PARAMS:<top> -> [REQUEST-BODY:<string>, CONTENT-TYPE:<string>]}:<procedure>
+;;    Procedure that handle one arg and must return 2 values
+;;       Request body as STRING and new Content-Type: field that send to oauth provider.
+;; -> <top>
+(define (oauth2-post url query-params body . http-options)
+  ;; TODO merge URL with QUERY-PARAMS
+  (let1 url* (cond
+              [query-params
+               (string-append url "?" (http-compose-query #f query-params))]
+              [else
+               url])
+    (apply request->response/content-type
+           'post url* body http-options)))
+
+;; ## Arguments are same as `oauth2-get` except BODY
+;; -> <top>
+(define (oauth2-get url query-params . http-options)
+  (apply request->response/content-type
+         'get url query-params http-options))
 
 (define oauth2-stringify-scope stringify-scope)
