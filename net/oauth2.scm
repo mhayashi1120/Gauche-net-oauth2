@@ -47,9 +47,6 @@
   )
 (select-module net.oauth2)
 
-;; # About :request-content-type
-;; TODO describe more.
-
 (unless (version>? (gauche-version) "0.9")
   (error "Unable to load oauth2 (https is not supported)"))
 
@@ -144,39 +141,44 @@
        (errorf "Not a supported Content-Type: ~a" content-type)]))
   (values body header status))
 
-(define (%construct-request params-or-blob http-options)
+(define (%construct-request handler params-or-blob http-options)
   (let-keywords http-options
       ([content-type #f]
-       . other-http-options)
+       . http-options*)
     (cond
-     [(not content-type)
+     [(not handler)
       (values params-or-blob http-options)]
-     [(string? content-type)
-      (match (mime-parse-content-type content-type)
-        [#f
-         (values params-or-blob http-options)]
-        [(_ "x-www-form-urlencoded" . _)
-         (values (http-compose-query #f params-or-blob)
-                 http-options)]
-        [(_ "json" . _)
-         (values (construct-json-string params-or-blob)
-                 http-options)]
-        [else
-         (errorf "Not a supported Content-Type: ~a" content-type)])]
-     [(procedure? content-type)
+     [(string? handler)
+      (let1 options* (cond-list
+                      [#t @ (list :content-type handler)]
+                      [#t @ http-options*])
+        (match (mime-parse-content-type handler)
+          [#f
+           (values params-or-blob options*)]
+          [(_ "x-www-form-urlencoded" . _)
+           (values (http-compose-query #f params-or-blob)
+                   options*)]
+          [(_ "json" . _)
+           (values (construct-json-string params-or-blob)
+                   options*)]
+          [else
+           (errorf "Not a supported Content-Type: ~a" handler)]))]
+     [(procedure? handler)
       ;; This procedure should return STRING body and new Content-Type:
-      (receive (body content-type)
-          (content-type params-or-blob)
+      (receive (body content-type*) (handler params-or-blob)
         (values body
-                `(
-                  :content-type ,content-type
-                  ,@(delete-keyword :content-type http-options))))]
+                (cond-list
+                 [#t @ (list :content-type content-type*)]
+                 [#t @  http-options*])))]
      [else
-      (errorf "Not a supported Content-Type: ~a" content-type)])))
+      (errorf "Not a supported content handler ~a" handler)])))
 
-(define (post/content-type url query body . http-options)
+(define (post/content-type
+         url query
+         body :key (content-handler #f)
+         :allow-other-keys http-options)
   (receive (request-body request-args)
-      (%construct-request body http-options)
+      (%construct-request content-handler body http-options)
     (receive (body header status)
         (apply %request 'post url () request-body request-args)
       (%response-receivr body header status))))
@@ -237,7 +239,7 @@
     [#t `("client_id" ,client-id)]
     ;;TODO not described in doc
     [#t @ (%other-keys->params keys)])
-   :content-type request-content-type))
+   :content-handler request-content-type))
 
 ;; Obsoleted
 (define (oauth2-request-auth-token url code redirect client-id . keys)
@@ -286,7 +288,7 @@
      `("scope" ,(%stringify-scope scope))]
     [#t @ (%other-keys->params keys)])
    :auth (basic-authentication username password)
-   :content-type request-content-type))
+   :content-handler request-content-type))
 
 ;;;
 ;;; Client Credentials (Section 4.4)
@@ -305,7 +307,7 @@
      `("scope" ,(%stringify-scope scope))]
     [#t @ (%other-keys->params keys)])
    :auth (basic-authentication username password)
-   :content-type request-content-type))
+   :content-handler request-content-type))
 
 ;; todo Extensions (Section 4.5)
 ;; (define (oauth2-request-extensions url)
@@ -339,7 +341,7 @@
     [(%is-scope? scope)
      `("scope" ,(%stringify-scope scope))]
     [#t @ (%other-keys->params keys)])
-   :content-type request-content-type))
+   :content-handler request-content-type))
 
 ;;;
 ;;; Utilities for special implementation
@@ -366,16 +368,23 @@
 ;; ## Utility procedure (s-exp -> s-exp)
 ;; - URL : <string> Basic URL before construct with QUERY-PARAMS
 ;; - QUERY-PARAMS : <alist> | #f Append to URL as query part.
-;; - BODY : <top> Accept any type TODO describe about :request-content-type
+;; - BODY : <string> | <top> Accept any type that might be handled `:request-content-type` .
 ;; - HTTP-OPTIONS: Accept `:auth` `:accept` and others are passed to `http-get` `http-post`.
 ;;    This procedure especially handling `:content-type` and `:request-content-type` which are
 ;;    described below.
 ;; - :request-content-type : MIME:<string> | {PARAMS:<top> -> [REQUEST-BODY:<string>, CONTENT-TYPE:<string>]}:<procedure>
-;;    content-type string or Procedure that handle one arg and must return 2 values
+;;    When Procedure that must handle one arg and return 2 values.
 ;;       Request body as STRING and new Content-Type: field that send to oauth provider.
+;;    if this value is a <string>, BODY handled as the sexp data type. (supported are `x-www-form-urlencoded` and `json`)
+;;       then overwrite `http-options` :content-type by this value.
 ;; -> <top>
-(define (oauth2-post url query-params body . http-options)
-  (apply post/content-type url query-params body http-options))
+(define (oauth2-post
+         url query-params body
+         :key (request-content-type #f)
+         :allow-other-keys http-options)
+  (apply post/content-type url query-params body
+         :content-handler request-content-type
+         http-options))
 
 ;; ## Utility procedure. Arguments are same as `oauth2-get` except BODY
 ;; -> <top>
