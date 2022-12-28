@@ -24,12 +24,10 @@
 ;; # Basic concepts:
 ;; - ref: https://www.rfc-editor.org/rfc/rfc8252
 ;; - ref: https://tex2e.github.io/rfc-translater/html/rfc8252.html
+;; - Maybe not enough implemented rfc8252. But working well.
 
 ;; # TODO
-;; - Move this logic to net.oauth2 module
-;; - automated launch default browser. (If generic way) -> `xdg-open`
 ;; - Simple HTTP server might be abort if too many size recv for security reason
-;; - Seems defined in rfc8252. more exact imp.
 
 ;;;
 ;;; Port Listener
