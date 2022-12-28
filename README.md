@@ -2,8 +2,7 @@ Gauche-net-oauth2
 ===================
 
 Not like Oauth 1.0, Oauth2 is a simple protocol.
-This package desired to provide convenience procedure to handle Major Oauth2 provider's (Github, Facebook, Google ...) API. In other words, simple wrapper procedures rfc.http (http-post, http-get) .
-
+This package desired to provide convenience (utility) procedure to handle Major Oauth2 provider's (Github, Facebook, Google ...) API.
 
 ## Install
 
@@ -11,11 +10,12 @@ This package desired to provide convenience procedure to handle Major Oauth2 pro
     make check
     sudo make install
 
-## Confirmed Providers
+## Confirmed OAuth2 Providers
 
+- Google (2022-12)
+- Twitter (2022-12)
 - Github
 - Facebook
-- Google
 - LINE
 
 ## Procedures
