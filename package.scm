@@ -24,6 +24,7 @@
   :providing-modules (
                       net.oauth2
                       net.oauth2.code-verifier
+                      net.oauth2.native-app
                       )
   
   ;; List name and contact info of authors.
