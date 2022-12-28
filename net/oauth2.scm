@@ -41,6 +41,7 @@
    ;; should use `oauth2-request-access-token`
    oauth2-request-auth-token
 
+   ;; should use `oauth2-post` `oauth2-get`
    oauth2-request/json
    oauth2-request
    )
