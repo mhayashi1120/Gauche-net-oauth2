@@ -20,10 +20,8 @@
   (use gauche.version)
 
   (export
-;;;
-;;; These procedure return 3 values (BODY HEADERS STATUS)
-;;; Not like rfc.http procedures (`http-post` / `http-get` ...)
-;;;
+   ;; These procedure return 3 values (BODY HEADERS STATUS)
+   ;; Unlike rfc.http procedures (`http-post` / `http-get` ...)
    oauth2-request-password-credential
    oauth2-request-implicit-grant
    oauth2-request-access-token
@@ -32,15 +30,10 @@
    
    oauth2-construct-auth-request-url
 
-   oauth2-bearer-header
+   oauth2-bearer-header basic-authentication
 
    oauth2-stringify-scope
    oauth2-post oauth2-get
-   )
-
-  ;; Testing exports
-  (export
-   basic-authentication
    )
 
   ;; Obsoleting exports
@@ -206,7 +199,7 @@
 ;;; Authorization Code (Section 4.1)
 ;;;
 
-;; 4.1.1.  Authorization Request
+;; ## 4.1.1.  Authorization Request
 (define (oauth2-construct-auth-request-url
          url client-id
          :key
@@ -229,7 +222,7 @@
 
 ;; 4.1.2.  Authorization Response (In user browser)
 
-;; 4.1.3.  Access Token Request
+;; ## 4.1.3.  Access Token Request
 (define (oauth2-request-access-token
          url code client-id
          :key (redirect #f) (request-content-type #f)
@@ -258,6 +251,7 @@
 ;;;
 
 ;;TODO reconsider check content-type?
+;; ##
 (define (oauth2-request-implicit-grant
          url client-id
          :key (redirect #f) (scope '()) (state #f)
@@ -277,6 +271,7 @@
 ;;; Resource Owner Password Credentials (Section 4.3)
 ;;;
 
+;; ##
 (define (oauth2-request-password-credential
          url username password
          :key (scope '()) (request-content-type #f)
@@ -297,6 +292,7 @@
 ;;; Client Credentials (Section 4.4)
 ;;;
 
+;; ##
 (define (oauth2-request-client-credential
          url username password
          :key (scope '()) (request-content-type #f)
@@ -322,13 +318,14 @@
 
 (autoload rfc.base64 base64-encode-string)
 
-;; ##
+;; ## Utility procedure HTTP Basic authentication
 ;; - USER: Might be client-id or api-key
 ;; - PASS: Might be client-secret or api-secret
 ;; -> <string>
 (define (basic-authentication user pass)
   (format "Basic ~a" (base64-encode-string #"~|user|:~|pass|" :line-width #f)))
 
+;; ##
 ;; (Section 6)
 (define (oauth2-refresh-token
          url refresh-token
@@ -366,23 +363,24 @@
    [(get)
     (apply get/content-type url params http-options)]))
 
-;; ## Consider to use s-exp -> s-exp
+;; ## Utility procedure (s-exp -> s-exp)
 ;; - URL : <string> Basic URL before construct with QUERY-PARAMS
 ;; - QUERY-PARAMS : <alist> | #f Append to URL as query part.
 ;; - BODY : <top> Accept any type TODO describe about :request-content-type
 ;; - HTTP-OPTIONS: Accept `:auth` `:accept` and others are passed to `http-get` `http-post`.
 ;;    This procedure especially handling `:content-type` and `:request-content-type` which are
 ;;    described below.
-;; - :request-content-type MIME:<string> | {PARAMS:<top> -> [REQUEST-BODY:<string>, CONTENT-TYPE:<string>]}:<procedure>
+;; - :request-content-type : MIME:<string> | {PARAMS:<top> -> [REQUEST-BODY:<string>, CONTENT-TYPE:<string>]}:<procedure>
 ;;    content-type string or Procedure that handle one arg and must return 2 values
 ;;       Request body as STRING and new Content-Type: field that send to oauth provider.
 ;; -> <top>
 (define (oauth2-post url query-params body . http-options)
   (apply post/content-type url query-params body http-options))
 
-;; ## Arguments are same as `oauth2-get` except BODY
+;; ## Utility procedure. Arguments are same as `oauth2-get` except BODY
 ;; -> <top>
 (define (oauth2-get url query-params . http-options)
   (apply get/content-type url query-params http-options))
 
+;; ##
 (define oauth2-stringify-scope %stringify-scope)

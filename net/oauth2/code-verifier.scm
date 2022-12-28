@@ -22,19 +22,20 @@
 ;; - ref: https://developers.google.com/identity/protocols/oauth2/native-app
 
 ;; ## Basic PKCE flow:
-;; > 4.3.  Client Sends the Code Challenge with the Authorization Request
+;;
+;; ### 4.3.  Client Sends the Code Challenge with the Authorization Request
 ;;  Send following parameters:
 ;; - "code_challenge"
 ;; - "code_challenge_method"
 ;;
-;; > 4.4.  Server Returns the Code
+;; ### 4.4.  Server Returns the Code
 ;; Server keep "code_challenge" and "code_challenge_method" to each client session.
 ;; Then return any code any proper way.
 ;;
-;; > 4.5.  Client Sends the Authorization Code and the Code Verifier to the Token Endpoint
+;; ### 4.5.  Client Sends the Authorization Code and the Code Verifier to the Token Endpoint
 ;; "code_verifier"
 ;;
-;; > 4.6.  Server Verifies code_verifier before Returning the Tokens
+;; ### 4.6.  Server Verifies code_verifier before Returning the Tokens
 
 ;;;
 ;;; Internal
@@ -59,7 +60,7 @@
   ($ string->b64url $ sha256-digest-string s))
 
 ;;;
-;;; API
+;;; # API
 ;;;
 
 ;; ##
