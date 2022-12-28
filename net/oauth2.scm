@@ -237,7 +237,6 @@
     ;; e.g. github doesn't need redirect
     [redirect `("redirect_uri" ,redirect)]
     [#t `("client_id" ,client-id)]
-    ;;TODO not described in doc
     [#t @ (%other-keys->params keys)])
    :content-handler request-content-type))
 
@@ -252,7 +251,6 @@
 ;;; Implicit Grant (Section 4.2)
 ;;;
 
-;;TODO reconsider check content-type?
 ;; ##
 (define (oauth2-request-implicit-grant
          url client-id
