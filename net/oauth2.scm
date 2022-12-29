@@ -2,7 +2,7 @@
 ;;; OAuth 2.0 (rfc6749, rfc6750)
 ;;;
 
-;; # Status the develop:
+;; Status of the develop:
 ;; - RFC 6749 is almost working now.
 ;; - RFC 6750 is implementing now.
 ;; - Need cleanup and might be obsoleted some of api.
