@@ -368,13 +368,14 @@
 ;; - URL : <string> Basic URL before construct with QUERY-PARAMS
 ;; - QUERY-PARAMS : <alist> | #f Append to URL as query part.
 ;; - BODY : <string> | <top> Accept any type that might be handled `:request-content-type` .
-;; - HTTP-OPTIONS: Accept `:auth` `:accept` and others are passed to `http-get` `http-post`.
-;;    This procedure especially handling `:content-type` and `:request-content-type` which are
+;; - HTTP-OPTIONS : Accept `:auth` `:accept` and others are passed to `http-get` `http-post`.
+;;    This procedure especially handling `:request-content-type` which are
 ;;    described below.
 ;; - :request-content-type : MIME:<string> | {PARAMS:<top> -> [REQUEST-BODY:<string>, CONTENT-TYPE:<string>]}:<procedure>
-;;    When Procedure that must handle one arg and return 2 values.
+;;    When procedure that must handle one arg and return 2 values.
 ;;       Request body as STRING and new Content-Type: field that send to oauth provider.
-;;    if this value is a <string>, BODY handled as the sexp data type. (supported are `x-www-form-urlencoded` and `json`)
+;;    if this value is a <string> regarded as Content-Type, BODY handled as the sexp data type.
+;;       supported are `x-www-form-urlencoded` and `json`.
 ;;       then overwrite `http-options` :content-type by this value.
 ;; -> <top>
 (define (oauth2-post
