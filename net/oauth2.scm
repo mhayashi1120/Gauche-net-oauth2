@@ -227,6 +227,12 @@
 ;; 4.1.2.  Authorization Response (In user browser)
 
 ;; ## 4.1.3.  Access Token Request
+;; If something wrong any provider consider to use
+;;    :request-content-type as "application/x-www-form-urlencoded"
+;; - URL : <string>
+;; - CODE : <string>
+;; - CLIENT-ID : <string>
+;; -> <json>
 (define (oauth2-request-access-token
          url code client-id
          :key (redirect #f) (request-content-type #f)
@@ -254,6 +260,7 @@
 ;;;
 
 ;; ##
+;; -> <json>
 (define (oauth2-request-implicit-grant
          url client-id
          :key (redirect #f) (scope '()) (state #f)
