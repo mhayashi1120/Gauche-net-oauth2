@@ -4,8 +4,6 @@
 (define-module net.oauth2.code-verifier
   (use rfc.base64)
   (use rfc.sha1)
-  (use rfc.uri)
-  (use scheme.charset)
   (use scheme.list)
   (use srfi-13)
   (use srfi-27)

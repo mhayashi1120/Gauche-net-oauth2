@@ -12,11 +12,7 @@
   (use rfc.822)
   (use text.tr)
   (use rfc.http)
-  (use rfc.sha)
-  (use rfc.hmac)
   (use rfc.uri)
-  (use srfi-1)
-  (use math.mt-random)
   (use gauche.version)
 
   (export
