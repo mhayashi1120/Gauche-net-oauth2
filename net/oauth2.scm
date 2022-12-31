@@ -7,6 +7,9 @@
 ;; - RFC 6750 is implementing now.
 ;; - Need cleanup and might be obsoleted some of api.
 
+;; # Basic usage:
+;; - :scope keyword accept string / list.
+
 (define-module net.oauth2
   (use util.match)
   (use rfc.822)
@@ -199,6 +202,8 @@
 ;;;
 
 ;; ## 4.1.1.  Authorization Request
+;; Generate URL which each oauth2 provider's one.
+;; -> URL:<string>
 (define (oauth2-construct-auth-request-url
          url client-id
          :key
@@ -269,6 +274,10 @@
 ;;;
 
 ;; ##
+;; - URL : <string>
+;; - USERNAME : <string>
+;; - PASSWORD : <string>
+;; -> <json>
 (define (oauth2-request-password-credential
          url username password
          :key (scope '()) (request-content-type #f)
@@ -290,6 +299,10 @@
 ;;;
 
 ;; ##
+;; - URL : <string>
+;; - USERNAME : <string> Might be called api-key, client-id
+;; - PASSWORD : <string> Might be called api-secret, client-secret
+;; -> <json>
 (define (oauth2-request-client-credential
          url username password
          :key (scope '()) (request-content-type #f)
