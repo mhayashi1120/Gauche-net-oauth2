@@ -88,7 +88,7 @@
                 (unless (equal? state state*)
                   (bad)))]
              [else (bad)])
-            (cond 
+            (cond
              [(rfc822-header-ref q "code") =>
               (^ [code]
                 (response-ok!)

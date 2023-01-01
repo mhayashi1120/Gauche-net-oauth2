@@ -29,7 +29,9 @@
    
    oauth2-construct-auth-request-url
 
-   oauth2-bearer-header basic-authentication
+   oauth2-bearer basic-authentication
+   ;; TODO might be obsoleted
+   oauth2-bearer-header 
 
    oauth2-stringify-scope
    oauth2-post oauth2-get
@@ -328,10 +330,16 @@
 ;; (define (oauth2-request-extensions url)
 ;;   )
 
-;; ## Mentioned in rfc6750
+;; ## TODO should be obsoleted. Just wrapper of `oauth2-bearer`
+;; Probablly missed introduce the procedure.
 ;; -> <string>
 (define (oauth2-bearer-header cred)
-  (format "Bearer ~a" (slot-ref cred 'access-token)))
+  (oauth2-bearer (slot-ref cred 'access-token)))
+
+;; ## Mentioned in rfc6750 (TODO should be obsoleted)
+;; -> <string>
+(define (oauth2-bearer token)
+  (format "Bearer ~a" token))
 
 (autoload rfc.base64 base64-encode-string)
 
