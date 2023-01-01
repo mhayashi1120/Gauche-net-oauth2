@@ -12,8 +12,7 @@
 (use net.oauth2.code-verifier)
 (test-module 'net.oauth2.code-verifier)
 
+(use net.oauth2.native-app)
+(test-module 'net.oauth2.native-app)
+
 (test-end :exit-on-failure #t)
-
-
-
-
