@@ -26,12 +26,12 @@
    oauth2-request-access-token
    oauth2-request-client-credential
    oauth2-refresh-token
-   
+
    oauth2-construct-auth-request-url
 
    oauth2-bearer basic-authentication
    ;; TODO might be obsoleted
-   oauth2-bearer-header 
+   oauth2-bearer-header
 
    oauth2-stringify-scope
    oauth2-post oauth2-get
@@ -139,7 +139,7 @@
        (set! body (call-with-input-string body (cut ssax:xml->sxml <> '())))]
       [(_ "x-www-form-urlencoded" . _)
        (set! body (cgi-parse-parameters :query-string body))]
-      [else
+      [_
        (errorf "Not a supported Content-Type: ~a" content-type)]))
   (values body header status))
 
@@ -163,7 +163,7 @@
           [(_ "json" . _)
            (values (construct-json-string params-or-blob)
                    options*)]
-          [else
+          [_
            (errorf "Not a supported Content-Type: ~a" handler)]))]
      [(procedure? handler)
       ;; This procedure should return STRING body and new Content-Type:
@@ -378,7 +378,7 @@
 ;; ## TODO Obsoleting. Should use `oauth2-post` or `oauth2-get`
 ;; - METHOD: `post` / `get`
 ;; - URL: <string> endpoint of oauth2 provider.
-;; - PARAMS: <query> | <json> | <string> | 
+;; - PARAMS: <query> | <json> | <string> |
 ;;      passed to `http-post` (Default). `:content-type` in http-options change
 ;;      this behavior.
 (define (oauth2-request method url params . http-options)
