@@ -1,0 +1,25 @@
+name: CI
+
+on:
+  schedule:
+    - cron: '59 2 * * 0'
+  pull_request:
+  push:
+    paths-ignore:
+    - '**.md'
+
+jobs:
+  build:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os:
+          - ubuntu-latest
+    container:
+      image: practicalscheme/gauche
+    steps:
+      - uses: actions/checkout@v3
+      - name: Setup package
+        run: |
+      - name: CI
+        run: ./run-ci.sh
