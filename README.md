@@ -1,6 +1,8 @@
 Gauche-net-oauth2
 ===================
 
+[![CI](https://github.com/mhayashi1120/Gauche-net-oauth2/actions/workflows/build.yml/badge.svg)](https://github.com/mhayashi1120/Gauche-net-oauth2/actions/workflows/build.yml)
+
 Not like Oauth 1.0, Oauth2 is a simple protocol.
 This package desired to provide convenience (utility) procedure to handle Major Oauth2 provider's (Github, Facebook, Google ...) API.
 
