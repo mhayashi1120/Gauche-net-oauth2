@@ -3,8 +3,8 @@
 ;;
 
 (define-gauche-package "Gauche-net-oauth2"
-  ;; 
-  :version "0.4.13"
+  ;;
+  :version "0.4.14"
 
   ;; Description of the package.  The first line is used as a short
   ;; summary.
@@ -26,7 +26,7 @@
                       net.oauth2.code-verifier
                       net.oauth2.native-app
                       )
-  
+
   ;; List name and contact info of authors.
   ;; e.g. ("Eva Lu Ator <eval@example.com>"
   ;;       "Alyssa P. Hacker <lisper@example.com>")
@@ -41,9 +41,7 @@
   ;; e.g. ("BSD")
   :licenses ("BSD")
 
-  ;; Homepage URL, if any.
   :homepage "https://github.com/mhayashi1120/Gauche-net-oauth2"
 
-  ;; Repository URL, e.g. github
   :repository "https://github.com/mhayashi1120/Gauche-net-oauth2.git"
   )
