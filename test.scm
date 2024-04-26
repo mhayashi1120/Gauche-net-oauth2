@@ -13,10 +13,10 @@
 
 (library-for-each
  'net.oauth2.*
- ;; gauche `load` need ./ or ../ prefix.
  (^ [module path]
    (let1 path* (if (absolute-path? path)
                  path
+                 ;; gauche `load` need ./ or ../ prefix.
                  #"./~|path|")
      (load path*))
    (test-module module)))
