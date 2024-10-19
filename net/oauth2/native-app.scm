@@ -253,7 +253,7 @@
          :key (prompt? #t) (http-listener #f)
          (browser :try)
          (state #f) (bind-server #f)
-         (timeout 60))
+         (timeout 180))
 
   (receive (sender! receiver) (%make-notifier)
     (let1 pool (make-thread-pool 5) ; 5 maybe enough ;-)
