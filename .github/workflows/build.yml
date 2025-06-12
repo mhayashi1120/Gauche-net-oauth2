@@ -2,7 +2,7 @@ name: CI
 
 on:
   schedule:
-    - cron: '59 2 * * 0'
+    - cron: '59 2 28 * *'
   pull_request:
   push:
     paths-ignore:
